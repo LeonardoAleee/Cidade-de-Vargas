@@ -62,6 +62,12 @@ class Cidade:
 
 ########################################## Exemplo: ##########################################
 
+# RegiaoA                      RegiaoB
+#    1A ------(100)------- 2A --------(150)-------- 3B
+#    |                                               |
+#   (120)                                          (200)
+#    |                                               |
+#    5A -------------------(80)-------------------- 4B
 
 cruzamento1 = Cruzamento(ID=1, cep='RegiaoA')
 cruzamento2 = Cruzamento(ID=2, cep='RegiaoA')
@@ -130,14 +136,14 @@ for cruzamento_id, edges in cidade.Planta.items():
 # Cruzamento 2: [(1, 5000.0, 100.0), (3, 7500.0, 150.0)]
 # Cruzamento 3: [(2, 7500.0, 150.0), (4, 10000.0, 200.0)]
 # Cruzamento 4: [(3, 10000.0, 200.0)]
-
+# Cruzamento 5: [(1, 6000.0, 120.0), (4, 4000.0, 80.0)]
 print("\nRegiões:")
 for regiao_id, cruzamentos in cidade.Regioes.items():
     print(f"Região {regiao_id}: Cruzamentos {cruzamentos}")
 
 # Output:
 # Regiões:
-# Região RegiaoA: Cruzamentos {1, 2}
+# Região RegiaoA: Cruzamentos {1, 2, 5}
 # Região RegiaoB: Cruzamentos {3, 4}
 
 
@@ -146,3 +152,38 @@ for regiao_id, subgrafo in cidade.Subgrafos_Regioes.items():
     print(f"\n Sugrafo da {regiao_id}:")
     for cruzamento_id, edges in subgrafo.items():
         print(f"  Cruzamento {cruzamento_id}: {edges}")
+
+#### Implementando algoritmo de calcular distâncias ####
+
+import heapq
+from math import inf
+
+
+def calcular_distancias(subgrafo, origem):
+    # Dicionário armazenando as distâncias:
+    distancias = {v : inf for v in subgrafo}
+
+    distancias[origem] = 0
+    # Criar uma heap de prioridades
+    heap = [(0, origem)]
+
+    while heap:
+        dist_atual , cruzamento_atual = heapq.heappop(heap)
+        # se a distância for maior, vá ao próximo vértice
+        if dist_atual > distancias[cruzamento_atual]:
+            continue
+        for adj, _, distancia in subgrafo[cruzamento_atual]:
+            nova_distancia = dist_atual + distancia
+            if nova_distancia < distancias[adj]:
+                distancias[adj] = nova_distancia
+                heapq.heappush(heap, (nova_distancia, adj))
+
+    return distancias
+
+### Exemplo com djikstra
+for i in cidade.Planta:
+    print(f"Distâncias do cruzamento {i} aos outros no grafo principal:")
+    distancias = calcular_distancias(cidade.Planta, i)
+    for cruzamento, distancia in distancias.items():
+        print(f"Cruzamento {cruzamento}: {distancia}")
+    print("|-----|"*10)
