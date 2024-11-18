@@ -1,5 +1,6 @@
 import heapq
 from math import inf
+from collections import defaultdict
 
 class Imovel:
     def __init__(self, ID, cep, tipo, rua, numero):
@@ -9,10 +10,12 @@ class Imovel:
         self.rua = rua
         self.numero = numero
 
+
 class Cruzamento:
     def __init__(self, ID, cep):
         self.ID = ID
         self.cep = cep  # ID da região
+
 
 class Segmento:
     def __init__(self, ID_do_segmento, distancia, custo_de_escavacao, cruzamento_inicial, cruzamento_final, limite_de_velocidade=60):
@@ -33,7 +36,7 @@ class Segmento:
     def adicionar_imovel(self, imovel):
         if imovel.ID not in self.conjunto_de_imoveis:
             self.conjunto_de_imoveis[imovel.ID] = imovel
-            
+
             # Atualiza a contagem com base no tipo do imóvel
             if imovel.tipo == "R":
                 self.quantidade_residencial += 1
@@ -47,16 +50,12 @@ class Segmento:
 
 class Cidade:
     def __init__(self):
-        self.Segmentos = {}  # Dicionário {ID_do_segmento: objeto Segmento}
-        self.Planta = {}     # Grafo - {cruzamento_ID: [(cruzamento_adjacente_ID, custo_de_escavacao, distancia), ...]}
-        self.Regioes = {}    # Regiões - {regiao_ID: set of cruzamento IDs}
-        self.Subgrafos_Regioes = {}  # Guarda os subgrafos das regiões
+        self.Segmentos = {}
+        self.PlantaPesos = {}
+        self.Regioes = {}
 
     def adicionar_segmento(self, segmento):
-        # Adiciona o segmento ao dicionário usando seu ID como chave
         self.Segmentos[segmento.ID_do_segmento] = segmento
-        
-        # Já adiciona os cruzamentos do segmento às suas respectivas regiões
         for cruzamento in [segmento.cruzamento_inicial, segmento.cruzamento_final]:
             regiao_id = cruzamento.cep
             if regiao_id not in self.Regioes:
@@ -69,11 +68,11 @@ class Cidade:
         for segmento in self.Segmentos.values():
             ci_id = segmento.cruzamento_inicial.ID
             cf_id = segmento.cruzamento_final.ID
-            
+
             # Como o grafo é não dirigido, criamos 2 arestas: uma de i para j e outra de j para i
             edge_data = (cf_id, segmento.custo_de_escavacao, segmento.distancia)
             self.Planta.setdefault(ci_id, []).append(edge_data)
-            
+
             edge_data_reverse = (ci_id, segmento.custo_de_escavacao, segmento.distancia)
             self.Planta.setdefault(cf_id, []).append(edge_data_reverse)
 
@@ -93,70 +92,154 @@ class Cidade:
 
     def construir_planta_tarefa2(self):
         self.PlantaPesos = {}
+        pesos = []
         for segmento in self.Segmentos.values():
             ci_id = segmento.cruzamento_inicial.ID
             cf_id = segmento.cruzamento_final.ID
 
-            # Calcular o peso com base nos tipos de imóveis (podemos alterar isso)
+            # Calcular o peso com base nos tipos de imóveis adjacentes
             peso = (
                 -2 * segmento.quantidade_comercial -
                 2 * segmento.quantidade_turistico +
                 1 * segmento.quantidade_residencial +
                 1 * segmento.quantidade_industrial
             )
+            pesos.append(peso)
+            segmento.peso = peso  # Armazena o peso no segmento
 
-            # Criar aresta dupla (grafo não direcionado) com pesos customizados
-            self.PlantaPesos.setdefault(ci_id, []).append((cf_id, peso, segmento))
-            self.PlantaPesos.setdefault(cf_id, []).append((ci_id, peso, segmento))
+        min_peso = min(pesos)
+        shift = -min_peso + 1 if min_peso < 0 else 0  # Ajuste para pesos não negativos
 
-    def planejar_linha_onibus(self):
+        for segmento in self.Segmentos.values():
+            ci_id = segmento.cruzamento_inicial.ID
+            cf_id = segmento.cruzamento_final.ID
+
+            adjusted_peso = segmento.peso + shift
+
+            self.PlantaPesos.setdefault(ci_id, []).append((cf_id, adjusted_peso, segmento))
+            self.PlantaPesos.setdefault(cf_id, []).append((ci_id, adjusted_peso, segmento))
+
+    def dijkstra(self, start):
+        dist = {}
+        prev = {}
+        pq = [(0, start, None)]  # (distância acumulada, nó atual, segmento anterior)
+        dist[start] = 0
+
+        while pq:
+            d, current, segment = heapq.heappop(pq)
+
+            if d > dist.get(current, float('inf')):
+                continue
+
+            for neighbor, weight, seg in self.PlantaPesos.get(current, []):
+                new_dist = d + weight
+                if neighbor not in dist or new_dist < dist[neighbor]:
+                    dist[neighbor] = new_dist
+                    prev[neighbor] = (current, seg)
+                    heapq.heappush(pq, (new_dist, neighbor, seg))
+
+        return dist, prev
+
+    def reconstruir_caminho(self, prev, end):
+        caminho = []
+        current = end
+        while current in prev:
+            previous, segment = prev[current]
+            if segment:
+                caminho.append(segment)
+            current = previous
+        return list(reversed(caminho))
+
+    def calcular_menor_caminho_entre_regioes(self, start_cruzamento):
+        regioes = list(self.Regioes.keys())
+        caminhos_regioes = {}
+
+        for regiao_i in regioes:
+            for regiao_j in regioes:
+                if regiao_i == regiao_j:
+                    continue
+
+                menor_custo = float('inf')
+                caminho_segmentos = []
+
+                if regiao_i == self.regiao_inicial:
+                    cruz_i_list = [start_cruzamento]
+                else:
+                    cruz_i_list = self.Regioes[regiao_i]
+
+                if regiao_j == self.regiao_inicial:
+                    cruz_j_list = [start_cruzamento]
+                else:
+                    cruz_j_list = self.Regioes[regiao_j]
+
+                for cruz_i in cruz_i_list:
+                    dist, prev = self.dijkstra(cruz_i)
+                    for cruz_j in cruz_j_list:
+                        if cruz_j in dist and dist[cruz_j] < menor_custo:
+                            menor_custo = dist[cruz_j]
+                            caminho_segmentos = self.reconstruir_caminho(prev, cruz_j)
+
+                caminhos_regioes[(regiao_i, regiao_j)] = (menor_custo, caminho_segmentos)
+
+        return caminhos_regioes
+
+
+    def tsp(self, regioes, caminhos_regioes):
+        n = len(regioes)
+        memo = {}
+
+        def tsp_rec(mask, pos):
+            if mask == (1 << n) - 1:  # Todos visitados
+                if (regioes[pos], regioes[0]) in caminhos_regioes:
+                    return_custo, return_caminho = caminhos_regioes[(regioes[pos], regioes[0])]
+                    return return_caminho, return_custo
+                else:
+                    return [], float('inf')
+
+            if (mask, pos) in memo:
+                return memo[(mask, pos)]
+
+            min_caminho = []
+            min_custo = float('inf')
+            for next_region in range(n):
+                if mask & (1 << next_region) == 0:
+                    if (regioes[pos], regioes[next_region]) in caminhos_regioes:
+                        edge_custo, edge_caminho = caminhos_regioes[(regioes[pos], regioes[next_region])]
+                        caminho, custo = tsp_rec(mask | (1 << next_region), next_region)
+                        total_custo = edge_custo + custo
+                        total_caminho = edge_caminho + caminho
+
+                        if total_custo < min_custo:
+                            min_custo = total_custo
+                            min_caminho = total_caminho
+
+            memo[(mask, pos)] = (min_caminho, min_custo)
+            return memo[(mask, pos)]
+
+        caminho_final, _ = tsp_rec(1, 0)
+        return caminho_final
+
+    def planejar_linha_onibus(self, start_cruzamento):
         self.construir_planta_tarefa2()
 
-        pontos_por_regiao = {regiao: list(cruzamentos)[0] for regiao, cruzamentos in self.Regioes.items()}
-        pontos_iniciais = list(pontos_por_regiao.values())
+        regiao_inicial = None
+        for regiao, cruzamentos in self.Regioes.items():
+            if start_cruzamento in cruzamentos:
+                regiao_inicial = regiao
+                break
+        self.regiao_inicial = regiao_inicial 
 
-        rota_final = self.encontrar_rota_otimizada(pontos_iniciais)
+        regioes = list(self.Regioes.keys())
 
-        segmentos_onibus = [segmento.ID_do_segmento for segmento in rota_final]
+        if regiao_inicial is not None:
+            regioes.remove(regiao_inicial)
+            regioes = [regiao_inicial] + regioes
 
-        return segmentos_onibus
+        caminhos_regioes = self.calcular_menor_caminho_entre_regioes(start_cruzamento)
 
+        caminho_segmentos = self.tsp(regioes, caminhos_regioes)
+        return caminho_segmentos
 
-    def encontrar_rota_otimizada(self, pontos_iniciais):
-        visitados = set()
-        heap = [(0, pontos_iniciais[0], [], set(), None)]
-        melhor_rota = None
-        menor_custo = float('inf')
-
-        while heap:
-            custo, atual, caminho, regioes_cobertas, segmento_anterior = heapq.heappop(heap)
-
-            if len(regioes_cobertas) == len(self.Regioes) and caminho and caminho[0].cruzamento_inicial.ID == atual:
-                if custo < menor_custo:
-                    menor_custo = custo
-                    melhor_rota = caminho
-                continue
-
-            if atual in visitados and segmento_anterior:
-                continue
-            visitados.add(atual)
-
-            for regiao_id, cruzamentos in self.Regioes.items():
-                if atual in cruzamentos:
-                    regioes_cobertas.add(regiao_id)
-
-            for adjacente, peso, segmento in self.PlantaPesos.get(atual, []):
-                if segmento != segmento_anterior:
-                    novo_caminho = caminho + [segmento]
-                    novo_regioes_cobertas = regioes_cobertas.copy()
-                
-                # Adicionar novo caminho ao heap com o custo atualizado
-                    heapq.heappush(
-                        heap,
-                        (custo + peso, adjacente, novo_caminho, novo_regioes_cobertas, segmento)
-                    )
-
-        return melhor_rota
 
 
 #### Implementando algoritmo de calcular distâncias ####
