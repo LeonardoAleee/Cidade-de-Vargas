@@ -85,7 +85,6 @@ for i in cidade.Planta:
 
 
 # Planejar linha de ônibus
-cruzamentos, segmentos = cidade.planejar_linha_onibus()
+segmentos = cidade.planejar_linha_onibus()
 
-print("Cruzamentos para pontos de ônibus:", cruzamentos)
 print("Segmentos que formam a linha de ônibus:", segmentos)

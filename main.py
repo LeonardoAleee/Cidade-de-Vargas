@@ -114,30 +114,24 @@ class Cidade:
 
         pontos_por_regiao = {regiao: list(cruzamentos)[0] for regiao, cruzamentos in self.Regioes.items()}
         pontos_iniciais = list(pontos_por_regiao.values())
+
         rota_final = self.encontrar_rota_otimizada(pontos_iniciais)
 
-        if not rota_final:
-            print("Não foi possível encontrar um ciclo ideal.")
-            return [], []
+        segmentos_onibus = [segmento.ID_do_segmento for segmento in rota_final]
 
-        segmentos_onibus = []
+        return segmentos_onibus
 
-        for segmento in rota_final:
-            segmentos_onibus.append(segmento.ID_do_segmento)
-
-        return pontos_iniciais, segmentos_onibus
 
     def encontrar_rota_otimizada(self, pontos_iniciais):
         visitados = set()
-        heap = [(0, pontos_iniciais[0], [], None)]
+        heap = [(0, pontos_iniciais[0], [], set(), None)]
         melhor_rota = None
         menor_custo = float('inf')
 
         while heap:
-            custo, atual, caminho, segmento_anterior = heapq.heappop(heap)
+            custo, atual, caminho, regioes_cobertas, segmento_anterior = heapq.heappop(heap)
 
-            # Verifica se cobrimos todas as regiões e formamos um ciclo
-            if len(set(caminho)) >= len(self.Regioes) and caminho and caminho[0].cruzamento_inicial.ID == atual:
+            if len(regioes_cobertas) == len(self.Regioes) and caminho and caminho[0].cruzamento_inicial.ID == atual:
                 if custo < menor_custo:
                     menor_custo = custo
                     melhor_rota = caminho
@@ -147,10 +141,20 @@ class Cidade:
                 continue
             visitados.add(atual)
 
+            for regiao_id, cruzamentos in self.Regioes.items():
+                if atual in cruzamentos:
+                    regioes_cobertas.add(regiao_id)
+
             for adjacente, peso, segmento in self.PlantaPesos.get(atual, []):
                 if segmento != segmento_anterior:
                     novo_caminho = caminho + [segmento]
-                    heapq.heappush(heap, (custo + peso, adjacente, novo_caminho, segmento))
+                    novo_regioes_cobertas = regioes_cobertas.copy()
+                
+                # Adicionar novo caminho ao heap com o custo atualizado
+                    heapq.heappush(
+                        heap,
+                        (custo + peso, adjacente, novo_caminho, novo_regioes_cobertas, segmento)
+                    )
 
         return melhor_rota
 
