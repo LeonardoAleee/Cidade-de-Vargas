@@ -1,3 +1,6 @@
+import heapq
+from math import inf
+
 class Imovel:
     def __init__(self, ID, cep, tipo, rua, numero):
         self.ID = ID
@@ -60,8 +63,7 @@ class Cidade:
                 self.Regioes[regiao_id] = set()
             self.Regioes[regiao_id].add(cruzamento.ID)
 
-    #Usada apenas para Tarefa 1 e 2
-    def construir_planta(self):
+    def construir_planta_tarefa1(self):
         self.Planta = {}
         # Itera pelos segmentos no dicionário
         for segmento in self.Segmentos.values():
@@ -89,14 +91,71 @@ class Cidade:
 
             self.Subgrafos_Regioes[regiao_id] = subgrafo
 
+    def construir_planta_tarefa2(self):
+        self.PlantaPesos = {}
+        for segmento in self.Segmentos.values():
+            ci_id = segmento.cruzamento_inicial.ID
+            cf_id = segmento.cruzamento_final.ID
 
+            # Calcular o peso com base nos tipos de imóveis (podemos alterar isso)
+            peso = (
+                -2 * segmento.quantidade_comercial -
+                2 * segmento.quantidade_turistico +
+                1 * segmento.quantidade_residencial +
+                1 * segmento.quantidade_industrial
+            )
 
+            # Criar aresta dupla (grafo não direcionado) com pesos customizados
+            self.PlantaPesos.setdefault(ci_id, []).append((cf_id, peso, segmento))
+            self.PlantaPesos.setdefault(cf_id, []).append((ci_id, peso, segmento))
+
+    def planejar_linha_onibus(self):
+        self.construir_planta_tarefa2()
+
+        pontos_por_regiao = {regiao: list(cruzamentos)[0] for regiao, cruzamentos in self.Regioes.items()}
+        pontos_iniciais = list(pontos_por_regiao.values())
+        rota_final = self.encontrar_rota_otimizada(pontos_iniciais)
+
+        if not rota_final:
+            print("Não foi possível encontrar um ciclo ideal.")
+            return [], []
+
+        segmentos_onibus = []
+
+        for segmento in rota_final:
+            segmentos_onibus.append(segmento.ID_do_segmento)
+
+        return pontos_iniciais, segmentos_onibus
+
+    def encontrar_rota_otimizada(self, pontos_iniciais):
+        visitados = set()
+        heap = [(0, pontos_iniciais[0], [], None)]
+        melhor_rota = None
+        menor_custo = float('inf')
+
+        while heap:
+            custo, atual, caminho, segmento_anterior = heapq.heappop(heap)
+
+            # Verifica se cobrimos todas as regiões e formamos um ciclo
+            if len(set(caminho)) >= len(self.Regioes) and caminho and caminho[0].cruzamento_inicial.ID == atual:
+                if custo < menor_custo:
+                    menor_custo = custo
+                    melhor_rota = caminho
+                continue
+
+            if atual in visitados and segmento_anterior:
+                continue
+            visitados.add(atual)
+
+            for adjacente, peso, segmento in self.PlantaPesos.get(atual, []):
+                if segmento != segmento_anterior:
+                    novo_caminho = caminho + [segmento]
+                    heapq.heappush(heap, (custo + peso, adjacente, novo_caminho, segmento))
+
+        return melhor_rota
 
 
 #### Implementando algoritmo de calcular distâncias ####
-
-import heapq
-from math import inf
 
 
 def calcular_distancias(subgrafo, origem):
