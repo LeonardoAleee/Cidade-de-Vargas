@@ -266,3 +266,20 @@ def calcular_distancias(subgrafo, origem):
 
     return distancias
 
+def encontrar_centro_por_regiao(subgrafos_regioes):
+    centros = {}
+    for regiao, subgrafo in subgrafos_regioes.items():
+        melhor_cruzamento = None
+        menor_distancia_maxima = inf
+        
+        for cruzamento in subgrafo:
+            distancias = calcular_distancias(subgrafo, cruzamento)
+            distancia_maxima = max(distancias.values())  # Pior caso para esse cruzamento
+            
+            if distancia_maxima < menor_distancia_maxima:
+                menor_distancia_maxima = distancia_maxima
+                melhor_cruzamento = cruzamento
+        
+        centros[regiao] = (melhor_cruzamento, menor_distancia_maxima)
+    
+    return centros

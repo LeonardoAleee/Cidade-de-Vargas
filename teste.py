@@ -52,3 +52,9 @@ caminho_segmentos = cidade.planejar_linha_onibus(start_cruzamento=1)
 print("\nSegmentos da linha de ônibus:")
 for segmento in caminho_segmentos:
     print(f"Segmento {segmento.ID_do_segmento}")
+
+centros = encontrar_centro_por_regiao(cidade.Subgrafos_Regioes)
+
+print("Centros por Região:")
+for regiao, (cruzamento, distancia_maxima) in centros.items():
+    print(f"Região {regiao}: Cruzamento {cruzamento} (Distância Máxima: {distancia_maxima})")
