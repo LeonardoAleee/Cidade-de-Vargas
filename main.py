@@ -53,6 +53,7 @@ class Cidade:
         self.Segmentos = {}
         self.PlantaPesos = {}
         self.Regioes = {}
+        
 
     def adicionar_segmento(self, segmento):
         self.Segmentos[segmento.ID_do_segmento] = segmento
@@ -239,6 +240,53 @@ class Cidade:
 
         caminho_segmentos = self.tsp(regioes, caminhos_regioes)
         return caminho_segmentos
+    
+    def planejar_metro(self):
+        """
+        algritmo de planejamento do metrô usando Prim MST.
+        Retorna lista de segmentos que formam a árvore geradora minima.
+        """
+        if not self.Segmentos:
+            print("Segmentos vazios!")
+            return []
+        primeiro_segmento = next(iter(self.Segmentos.values()))
+        inicial = primeiro_segmento.cruzamento_inicial.ID
+        
+        visitados = set()
+        mst = [] 
+        heap = []  
+        
+        for segmento in self.Segmentos.values():
+            if segmento.cruzamento_inicial.ID == inicial:
+                heapq.heappush(heap, (segmento.custo_de_escavacao, segmento))
+            elif segmento.cruzamento_final.ID == inicial:
+                heapq.heappush(heap, (segmento.custo_de_escavacao, segmento))
+        
+        visitados.add(inicial)
+        
+        while heap:
+            custo, segmento = heapq.heappop(heap)
+            
+            if segmento.cruzamento_inicial.ID not in visitados:
+                proximo_cruzamento = segmento.cruzamento_inicial.ID
+            elif segmento.cruzamento_final.ID not in visitados:
+                proximo_cruzamento = segmento.cruzamento_final.ID
+            else:
+                continue  
+            
+            mst.append(segmento)
+            visitados.add(proximo_cruzamento)
+            
+            for seg in self.Segmentos.values():
+                if (seg.cruzamento_inicial.ID == proximo_cruzamento and 
+                    seg.cruzamento_final.ID not in visitados):
+                    heapq.heappush(heap, (seg.custo_de_escavacao, seg))
+                elif (seg.cruzamento_final.ID == proximo_cruzamento and 
+                    seg.cruzamento_inicial.ID not in visitados):
+                    heapq.heappush(heap, (seg.custo_de_escavacao, seg))
+        
+        return mst
+
 
 
 
