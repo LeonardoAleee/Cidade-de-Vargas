@@ -143,6 +143,7 @@ class Cidade:
 
         return dist, prev
 
+
     def reconstruir_caminho(self, prev, end):
         caminho = []
         current = end
@@ -152,6 +153,7 @@ class Cidade:
                 caminho.append(segment)
             current = previous
         return list(reversed(caminho))
+
 
     def calcular_menor_caminho_entre_regioes(self):
         regioes = list(self.Regioes.keys())
@@ -177,128 +179,9 @@ class Cidade:
         return caminhos_regioes
 
 
-    def construir_grafo_regioes(self, caminhos_regioes):
-        grafo_regioes = {}
-        for (regiao_i, regiao_j), (custo, _) in caminhos_regioes.items():
-            grafo_regioes.setdefault(regiao_i, []).append((regiao_j, custo))
-            grafo_regioes.setdefault(regiao_j, []).append((regiao_i, custo))
-        return grafo_regioes
-
-
-    def construir_mst_regioes(self, grafo_regioes):
-        parent = {}
-        rank = {}
-
-        def find(u):
-            if parent[u] != u:
-                parent[u] = find(parent[u])
-            return parent[u]
-
-        def union(u, v):
-            u_root = find(u)
-            v_root = find(v)
-            if u_root == v_root:
-                return False
-            if rank[u_root] < rank[v_root]:
-                parent[u_root] = v_root
-            else:
-                parent[v_root] = u_root
-                if rank[u_root] == rank[v_root]:
-                    rank[u_root] += 1
-            return True
-
-        # Inicializar conjuntos disjuntos
-        for regiao in grafo_regioes.keys():
-            parent[regiao] = regiao
-            rank[regiao] = 0
-
-        # Criar lista de arestas
-        edges = []
-        for regiao_i, adjacentes in grafo_regioes.items():
-            for regiao_j, custo in adjacentes:
-                if regiao_i < regiao_j:
-                    edges.append((custo, regiao_i, regiao_j))
-
-        # Ordenar arestas pelo custo
-        edges.sort()
-
-        mst = []
-        for custo, regiao_i, regiao_j in edges:
-            if union(regiao_i, regiao_j):
-                mst.append((regiao_i, regiao_j, custo))
-
-        return mst
-
-
-    def dfs_mst(self, mst, start_region):
-        # Construir lista de adjacência a partir da AGM
-        adjacents = defaultdict(list)
-        for regiao_i, regiao_j, custo in mst:
-            adjacents[regiao_i].append(regiao_j)
-            adjacents[regiao_j].append(regiao_i)
-
-        visited = set()
-        region_sequence = []
-
-        def dfs(u):
-            visited.add(u)
-            region_sequence.append(u)
-            for v in adjacents[u]:
-                if v not in visited:
-                    dfs(v)
-                    region_sequence.append(u)  # Adiciona ao voltar
-
-        dfs(start_region)
-        return region_sequence
-
-
-    def construir_rota_onibus(self, region_sequence, caminhos_regioes):
-        caminho_segmentos = []
-        for i in range(len(region_sequence) - 1):
-            regiao_i = region_sequence[i]
-            regiao_j = region_sequence[i + 1]
-            # Obter os segmentos entre as regiões
-            _, segmentos = caminhos_regioes.get((regiao_i, regiao_j), caminhos_regioes.get((regiao_j, regiao_i)))
-            caminho_segmentos.extend(segmentos)
-        return caminho_segmentos
-
-
-    def completar_rota_circular(self, region_sequence, caminhos_regioes):
-        start_region = region_sequence[0]
-        end_region = region_sequence[-1]
-        if end_region != start_region:
-            # Obter caminho de volta ao início
-            _, segmentos = caminhos_regioes.get((end_region, start_region), caminhos_regioes.get((start_region, end_region)))
-            return segmentos
-        return []
-
-
     def planejar_linha_onibus(self, start_cruzamento):
-        self.construir_planta_tarefa2()
+        pass
 
-        # Identificar a região inicial
-        regiao_inicial = start_cruzamento.cep
-        
-        # Calcular os menores caminhos entre regiões
-        caminhos_regioes = self.calcular_menor_caminho_entre_regioes()
-        
-        # Criar o grafo das regiões
-        grafo_regioes = self.construir_grafo_regioes(caminhos_regioes)
-        
-        # Construir a AGM do grafo das regiões
-        mst = self.construir_mst_regioes(grafo_regioes)
-        
-        # Realizar DFS na AGM para obter a sequência de regiões
-        region_sequence = self.dfs_mst(mst, regiao_inicial)
-        
-        # Construir a rota de ônibus baseada na sequência de regiões
-        caminho_segmentos = self.construir_rota_onibus(region_sequence, caminhos_regioes)
-        
-        # Completar a rota para torná-la circular
-        segmentos_para_completar = self.completar_rota_circular(region_sequence, caminhos_regioes)
-        caminho_segmentos.extend(segmentos_para_completar)
-        
-        return caminho_segmentos
 
     
     def planejar_metro(self):

@@ -12,12 +12,6 @@ from main import *
 
 
 import time
-import sys
-
-# Aumentar a recursão máxima para permitir a resolução do TSP para R=5
-sys.setrecursionlimit(10000)
-
-# Supondo que as classes e a função generate_city(x, y, k) já estejam definidas conforme discutido anteriormente
 
 def testar_tempo_planejamento():
     import math
@@ -33,6 +27,7 @@ def testar_tempo_planejamento():
         print(f"Dimensões da grade: x = {x}, y = {y}")
         
         cidade = generate_city(x, y, k)
+          
         cru_inicial = cidade.Segmentos[0].cruzamento_inicial
         start_cruzamento = cru_inicial
         
@@ -55,7 +50,10 @@ def testar_tempo_planejamento():
         else:
             print(f"N = {N} cruzamentos: Não foi possível calcular")
 
-testar_tempo_planejamento()
 
 
 
+cidade = generate_city(2, 2, 2)
+
+for seg in cidade.Segmentos.keys():
+    print(f"Cruzamento Inicial {cidade.Segmentos[seg].cruzamento_inicial.ID}, Cruzamento Final {cidade.Segmentos[seg].cruzamento_final.ID},")
