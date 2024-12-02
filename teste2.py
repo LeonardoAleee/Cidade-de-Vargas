@@ -26,7 +26,8 @@ custo_total = sum(seg.custo_de_escavacao for seg in segmentos_metro)
 distancia_total = sum(seg.distancia for seg in segmentos_metro)
 
 print(f"Linha de metrô planejada:")
-print(f"Número de segmentos: {len(segmentos_metro)}")
+for seg in segmentos_metro:
+    print(seg.ID_do_segmento)
 print(f"Custo total de escavação: {custo_total}")
 print(f"Distância total: {distancia_total} km")
 

@@ -164,12 +164,12 @@ class Cidade:
                 caminho_segmentos = []
 
                 if regiao_i == self.regiao_inicial:
-                    cruz_i_list = [start_cruzamento]
+                    cruz_i_list = [start_cruzamento.ID]
                 else:
                     cruz_i_list = self.Regioes[regiao_i]
 
                 if regiao_j == self.regiao_inicial:
-                    cruz_j_list = [start_cruzamento]
+                    cruz_j_list = [start_cruzamento.ID]
                 else:
                     cruz_j_list = self.Regioes[regiao_j]
 
@@ -223,12 +223,15 @@ class Cidade:
     def planejar_linha_onibus(self, start_cruzamento):
         self.construir_planta_tarefa2()
 
+        '''
         regiao_inicial = None
         for regiao, cruzamentos in self.Regioes.items():
             if start_cruzamento in cruzamentos:
                 regiao_inicial = regiao
                 break
-        self.regiao_inicial = regiao_inicial 
+        '''
+        regiao_inicial = start_cruzamento.cep 
+        self.regiao_inicial = regiao_inicial
 
         regioes = list(self.Regioes.keys())
 
@@ -238,8 +241,8 @@ class Cidade:
 
         caminhos_regioes = self.calcular_menor_caminho_entre_regioes(start_cruzamento)
 
-        caminho_segmentos = self.tsp(regioes, caminhos_regioes)
-        return caminho_segmentos
+        linha_onibus = self.tsp(regioes, caminhos_regioes)
+        return linha_onibus
     
     def planejar_metro(self):
         """
@@ -292,7 +295,7 @@ class Cidade:
 
 #### Implementando algoritmo de calcular distâncias ####
 
-
+'''
 def calcular_distancias(subgrafo, origem):
     # Dicionário armazenando as distâncias:
     distancias = {v : inf for v in subgrafo}
@@ -331,3 +334,5 @@ def encontrar_centro_por_regiao(subgrafos_regioes):
         centros[regiao] = (melhor_cruzamento, menor_distancia_maxima)
     
     return centros
+
+'''
