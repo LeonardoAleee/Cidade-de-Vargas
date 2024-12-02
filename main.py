@@ -1,6 +1,8 @@
 import heapq
 from math import inf
 from collections import defaultdict
+import math
+import random
 
 class Imovel:
     def __init__(self, ID, cep, tipo, rua, numero):
@@ -151,27 +153,17 @@ class Cidade:
             current = previous
         return list(reversed(caminho))
 
-    def calcular_menor_caminho_entre_regioes(self, start_cruzamento):
+    def calcular_menor_caminho_entre_regioes(self):
         regioes = list(self.Regioes.keys())
         caminhos_regioes = {}
 
-        for regiao_i in regioes:
-            for regiao_j in regioes:
-                if regiao_i == regiao_j:
-                    continue
-
+        for i, regiao_i in enumerate(regioes):
+            for regiao_j in regioes[i+1:]:
                 menor_custo = float('inf')
                 caminho_segmentos = []
 
-                if regiao_i == self.regiao_inicial:
-                    cruz_i_list = [start_cruzamento.ID]
-                else:
-                    cruz_i_list = self.Regioes[regiao_i]
-
-                if regiao_j == self.regiao_inicial:
-                    cruz_j_list = [start_cruzamento.ID]
-                else:
-                    cruz_j_list = self.Regioes[regiao_j]
+                cruz_i_list = self.Regioes[regiao_i]
+                cruz_j_list = self.Regioes[regiao_j]
 
                 for cruz_i in cruz_i_list:
                     dist, prev = self.dijkstra(cruz_i)
@@ -185,64 +177,129 @@ class Cidade:
         return caminhos_regioes
 
 
-    def tsp(self, regioes, caminhos_regioes):
-        n = len(regioes)
-        memo = {}
+    def construir_grafo_regioes(self, caminhos_regioes):
+        grafo_regioes = {}
+        for (regiao_i, regiao_j), (custo, _) in caminhos_regioes.items():
+            grafo_regioes.setdefault(regiao_i, []).append((regiao_j, custo))
+            grafo_regioes.setdefault(regiao_j, []).append((regiao_i, custo))
+        return grafo_regioes
 
-        def tsp_rec(mask, pos):
-            if mask == (1 << n) - 1:  # Todos visitados
-                if (regioes[pos], regioes[0]) in caminhos_regioes:
-                    return_custo, return_caminho = caminhos_regioes[(regioes[pos], regioes[0])]
-                    return return_caminho, return_custo
-                else:
-                    return [], float('inf')
 
-            if (mask, pos) in memo:
-                return memo[(mask, pos)]
+    def construir_mst_regioes(self, grafo_regioes):
+        parent = {}
+        rank = {}
 
-            min_caminho = []
-            min_custo = float('inf')
-            for next_region in range(n):
-                if mask & (1 << next_region) == 0:
-                    if (regioes[pos], regioes[next_region]) in caminhos_regioes:
-                        edge_custo, edge_caminho = caminhos_regioes[(regioes[pos], regioes[next_region])]
-                        caminho, custo = tsp_rec(mask | (1 << next_region), next_region)
-                        total_custo = edge_custo + custo
-                        total_caminho = edge_caminho + caminho
+        def find(u):
+            if parent[u] != u:
+                parent[u] = find(parent[u])
+            return parent[u]
 
-                        if total_custo < min_custo:
-                            min_custo = total_custo
-                            min_caminho = total_caminho
+        def union(u, v):
+            u_root = find(u)
+            v_root = find(v)
+            if u_root == v_root:
+                return False
+            if rank[u_root] < rank[v_root]:
+                parent[u_root] = v_root
+            else:
+                parent[v_root] = u_root
+                if rank[u_root] == rank[v_root]:
+                    rank[u_root] += 1
+            return True
 
-            memo[(mask, pos)] = (min_caminho, min_custo)
-            return memo[(mask, pos)]
+        # Inicializar conjuntos disjuntos
+        for regiao in grafo_regioes.keys():
+            parent[regiao] = regiao
+            rank[regiao] = 0
 
-        caminho_final, _ = tsp_rec(1, 0)
-        return caminho_final
+        # Criar lista de arestas
+        edges = []
+        for regiao_i, adjacentes in grafo_regioes.items():
+            for regiao_j, custo in adjacentes:
+                if regiao_i < regiao_j:
+                    edges.append((custo, regiao_i, regiao_j))
+
+        # Ordenar arestas pelo custo
+        edges.sort()
+
+        mst = []
+        for custo, regiao_i, regiao_j in edges:
+            if union(regiao_i, regiao_j):
+                mst.append((regiao_i, regiao_j, custo))
+
+        return mst
+
+
+    def dfs_mst(self, mst, start_region):
+        # Construir lista de adjacência a partir da AGM
+        adjacents = defaultdict(list)
+        for regiao_i, regiao_j, custo in mst:
+            adjacents[regiao_i].append(regiao_j)
+            adjacents[regiao_j].append(regiao_i)
+
+        visited = set()
+        region_sequence = []
+
+        def dfs(u):
+            visited.add(u)
+            region_sequence.append(u)
+            for v in adjacents[u]:
+                if v not in visited:
+                    dfs(v)
+                    region_sequence.append(u)  # Adiciona ao voltar
+
+        dfs(start_region)
+        return region_sequence
+
+
+    def construir_rota_onibus(self, region_sequence, caminhos_regioes):
+        caminho_segmentos = []
+        for i in range(len(region_sequence) - 1):
+            regiao_i = region_sequence[i]
+            regiao_j = region_sequence[i + 1]
+            # Obter os segmentos entre as regiões
+            _, segmentos = caminhos_regioes.get((regiao_i, regiao_j), caminhos_regioes.get((regiao_j, regiao_i)))
+            caminho_segmentos.extend(segmentos)
+        return caminho_segmentos
+
+
+    def completar_rota_circular(self, region_sequence, caminhos_regioes):
+        start_region = region_sequence[0]
+        end_region = region_sequence[-1]
+        if end_region != start_region:
+            # Obter caminho de volta ao início
+            _, segmentos = caminhos_regioes.get((end_region, start_region), caminhos_regioes.get((start_region, end_region)))
+            return segmentos
+        return []
+
 
     def planejar_linha_onibus(self, start_cruzamento):
         self.construir_planta_tarefa2()
 
-        '''
-        regiao_inicial = None
-        for regiao, cruzamentos in self.Regioes.items():
-            if start_cruzamento in cruzamentos:
-                regiao_inicial = regiao
-                break
-        '''
-        regiao_inicial = start_cruzamento.cep 
-        self.regiao_inicial = regiao_inicial
+        # Identificar a região inicial
+        regiao_inicial = start_cruzamento.cep
+        
+        # Calcular os menores caminhos entre regiões
+        caminhos_regioes = self.calcular_menor_caminho_entre_regioes()
+        
+        # Criar o grafo das regiões
+        grafo_regioes = self.construir_grafo_regioes(caminhos_regioes)
+        
+        # Construir a AGM do grafo das regiões
+        mst = self.construir_mst_regioes(grafo_regioes)
+        
+        # Realizar DFS na AGM para obter a sequência de regiões
+        region_sequence = self.dfs_mst(mst, regiao_inicial)
+        
+        # Construir a rota de ônibus baseada na sequência de regiões
+        caminho_segmentos = self.construir_rota_onibus(region_sequence, caminhos_regioes)
+        
+        # Completar a rota para torná-la circular
+        segmentos_para_completar = self.completar_rota_circular(region_sequence, caminhos_regioes)
+        caminho_segmentos.extend(segmentos_para_completar)
+        
+        return caminho_segmentos
 
-        regioes = list(self.Regioes.keys())
-
-        if regiao_inicial is not None:
-            regioes.remove(regiao_inicial)
-            regioes = [regiao_inicial] + regioes
-
-        caminhos_regioes = self.calcular_menor_caminho_entre_regioes(start_cruzamento)
-
-        linha_onibus = self.tsp(regioes, caminhos_regioes)
-        return linha_onibus
     
     def planejar_metro(self):
         """
@@ -290,6 +347,89 @@ class Cidade:
         
         return mst
 
+
+def factor_k(k):
+    for i in range(int(math.sqrt(k)), 0, -1):
+        if k % i == 0:
+            return i, k // i
+    return 1, k
+
+def generate_city(x, y, k):
+    # Criar cruzamentos
+    crossings = {}  # key: (i, j), value: Cruzamento object
+    cruzamento_id = 0
+    crossings_positions = {}  # key: cruzamento_id, value: (i, j)
+
+    # Determinar nx e ny para dividir o grid em regiões
+    nx, ny = factor_k(k)
+
+    regions = {}  # key: region_id, value: set of cruzamento IDs
+
+    for i in range(x):
+        for j in range(y):
+            # Determinar o ID da região
+            region_x = i * nx // x
+            region_y = j * ny // y
+            region_id = region_x + region_y * nx
+
+            # Atribuir o CEP como 'Regiao' + str(region_id)
+            cep = f'Regiao{region_id}'
+
+            cruzamento = Cruzamento(ID=cruzamento_id, cep=cep)
+            crossings[(i, j)] = cruzamento
+            crossings_positions[cruzamento_id] = (i, j)
+
+            # Adicionar o ID do cruzamento à região correspondente
+            if region_id not in regions:
+                regions[region_id] = set()
+            regions[region_id].add(cruzamento_id)
+
+            cruzamento_id += 1
+
+    # Criar segmentos conectando cruzamentos adjacentes
+    segmentos = []
+    segmento_id = 0
+    for i in range(x):
+        for j in range(y):
+            cruzamento = crossings[(i, j)]
+            # Conectar ao vizinho da direita
+            if i < x - 1:
+                neighbor_cruzamento = crossings[(i + 1, j)]
+                distancia = 1.0  # Pode ser ajustada conforme necessário
+                custo_de_escavacao = random.uniform(1000, 5000)
+                segmento = Segmento(segmento_id, distancia, custo_de_escavacao, cruzamento, neighbor_cruzamento)
+                segmentos.append(segmento)
+                segmento_id += 1
+            # Conectar ao vizinho de baixo
+            if j < y - 1:
+                neighbor_cruzamento = crossings[(i, j + 1)]
+                distancia = 1.0  # Pode ser ajustada conforme necessário
+                custo_de_escavacao = random.uniform(1000, 5000)
+                segmento = Segmento(segmento_id, distancia, custo_de_escavacao, cruzamento, neighbor_cruzamento)
+                segmentos.append(segmento)
+                segmento_id += 1
+
+    # Criar imóveis e atribuí-los aos segmentos
+    tipos_imovel = ['R', 'C', 'I', 'T']
+    imovel_id = 0
+    for segmento in segmentos:
+        num_imoveis = random.randint(0, 3)  # Número aleatório de imóveis neste segmento
+        numero = 1
+        for _ in range(num_imoveis):
+            tipo = random.choice(tipos_imovel)
+            cep = segmento.cruzamento_inicial.cep  # Usar o CEP do cruzamento inicial
+            rua = f"Rua {segmento.ID_do_segmento}"  # associar a rua ao ID do segmento
+            imovel = Imovel(imovel_id, cep, tipo, rua, numero)
+            segmento.adicionar_imovel(imovel)
+            imovel_id += 1
+            numero += 1 
+
+    # Criar a cidade e adicionar os segmentos
+    cidade = Cidade()
+    for segmento in segmentos:
+        cidade.adicionar_segmento(segmento)
+
+    return cidade
 
 
 
