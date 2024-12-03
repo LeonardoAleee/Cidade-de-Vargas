@@ -51,9 +51,4 @@ def testar_tempo_planejamento():
             print(f"N = {N} cruzamentos: Não foi possível calcular")
 
 
-
-
-cidade = generate_city(2, 2, 2)
-
-for seg in cidade.Segmentos.keys():
-    print(f"Cruzamento Inicial {cidade.Segmentos[seg].cruzamento_inicial.ID}, Cruzamento Final {cidade.Segmentos[seg].cruzamento_final.ID},")
+testar_tempo_planejamento()

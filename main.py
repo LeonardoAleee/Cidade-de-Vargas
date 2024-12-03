@@ -55,6 +55,8 @@ class Cidade:
         self.Segmentos = {}
         self.PlantaPesos = {}
         self.Regioes = {}
+        self.Cruzamentos = {}
+
         
 
     def adicionar_segmento(self, segmento):
@@ -64,6 +66,10 @@ class Cidade:
             if regiao_id not in self.Regioes:
                 self.Regioes[regiao_id] = set()
             self.Regioes[regiao_id].add(cruzamento.ID)
+            self.Cruzamentos[cruzamento.ID] = cruzamento
+
+    def get_cruzamento_region(self, cruz_id):
+        return self.Cruzamentos[cruz_id].cep
 
     def construir_planta_tarefa1(self):
         self.Planta = {}
@@ -180,7 +186,44 @@ class Cidade:
 
 
     def planejar_linha_onibus(self, start_cruzamento):
-        pass
+        self.construir_planta_tarefa2()
+        unvisited_regions = set(self.Regioes.keys())
+        current_cruzamento_id = start_cruzamento.ID
+        current_region = start_cruzamento.cep
+        unvisited_regions.remove(current_region)
+
+        segments_in_route = set()
+        path_segments = []
+
+        while unvisited_regions:
+            dist, prev = self.dijkstra(current_cruzamento_id) #O((V+E)logV)
+            sorted_intersections = sorted(dist.items(), key=lambda x: x[1]) #O(vlogv)
+            found = False
+            for cruz_id, distance in sorted_intersections: #O(V)
+                cruz_region = self.get_cruzamento_region(cruz_id)
+                if cruz_region in unvisited_regions:
+                    path = self.reconstruir_caminho(prev, cruz_id)
+                    for segment in path:
+                        if segment.ID_do_segmento not in segments_in_route:
+                            segments_in_route.add(segment.ID_do_segmento)
+                            path_segments.append(segment)
+                    current_cruzamento_id = cruz_id
+                    current_region = cruz_region
+                    unvisited_regions.remove(current_region)
+                    found = True
+                    break
+            if not found:
+                break
+        
+        #Retornar pro ponto inicial
+        dist, prev = self.dijkstra(current_cruzamento_id)
+        path = self.reconstruir_caminho(prev, start_cruzamento.ID)
+        for segment in path:
+            if segment.ID_do_segmento not in segments_in_route:
+                segments_in_route.add(segment.ID_do_segmento)
+                path_segments.append(segment)
+
+        return path_segments
 
 
     
