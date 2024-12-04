@@ -50,3 +50,14 @@ mapa.atualizar_condicoes_transito(fator_taxi, fator_onibus)
 # Buscar rota novamente com as condições atualizadas
 rota = buscar_rota(mapa, origem, destino, custo_maximo)
 
+import random
+
+def simular_transito():
+    # Gera fatores de trânsito aleatórios para táxi e ônibus
+    fator_taxi = random.uniform(0.5, 1.0)  # Velocidade varia entre 50% e 100%
+    fator_onibus = random.uniform(0.3, 0.8)  # Velocidade varia entre 30% e 80%
+    return fator_taxi, fator_onibus
+
+# Atualizar condições com base em simulação
+fator_taxi, fator_onibus = simular_transito()
+mapa.atualizar_condicoes_transito(fator_taxi, fator_onibus)
