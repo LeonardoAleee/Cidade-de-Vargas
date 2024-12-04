@@ -326,6 +326,19 @@ class Cidade:
         mst = self.conectar_estacoes_com_kruskal()
 
         return mst
+    
+    def encontrar_segmento_por_imovel(self, imovel):
+        # Obter cruzamentos da região pelo CEP do imóvel
+        cruzamentos_da_regiao = self.Regioes.get(imovel.cep, set())
+
+        # Iterar apenas pelos segmentos que conectam cruzamentos da região
+        for segmento in self.Segmentos.values():
+            if (segmento.cruzamento_inicial.ID in cruzamentos_da_regiao or 
+                segmento.cruzamento_final.ID in cruzamentos_da_regiao):
+                if imovel.ID in segmento.conjunto_de_imoveis:
+                    return segmento
+
+        return None
 
 def factor_k(k):
     for i in range(int(math.sqrt(k)), 0, -1):
