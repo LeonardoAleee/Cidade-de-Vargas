@@ -772,11 +772,11 @@ class Mapa:
 
         return None
 
-
-    def heuristica(self, cruzamento_atual, cruzamento_destino):
-        pos_atual = self.cidade.Cruzamentos[cruzamento_atual].posicao  # Posição (x, y)
-        pos_destino = self.cidade.Cruzamentos[cruzamento_destino].posicao
-        return math.sqrt((pos_atual[0] - pos_destino[0])**2 + (pos_atual[1] - pos_destino[1])**2)
+    
+    #def heuristica(self, cruzamento_atual, cruzamento_destino):
+    #    pos_atual = self.cidade.Cruzamentos[cruzamento_atual].posicao  # Posição (x, y)
+    #    pos_destino = self.cidade.Cruzamentos[cruzamento_destino].posicao
+    #    return math.sqrt((pos_atual[0] - pos_destino[0])**2 + (pos_atual[1] - pos_destino[1])**2)
 
 
     def atualizar_condicoes_transito(self, fator_taxi, fator_onibus):
