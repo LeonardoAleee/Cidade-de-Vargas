@@ -350,48 +350,84 @@ def generate_city(x, y, k):
 
     return cidade
 
-
-
-#### Implementando algoritmo de calcular distâncias ####
-
-'''
-def calcular_distancias(subgrafo, origem):
-    # Dicionário armazenando as distâncias:
-    distancias = {v : inf for v in subgrafo}
-
-    distancias[origem] = 0
-    # Criar uma heap de prioridades
-    heap = [(0, origem)]
-
-    while heap:
-        dist_atual , cruzamento_atual = heapq.heappop(heap)
-        # se a distância for maior, vá ao próximo vértice
-        if dist_atual > distancias[cruzamento_atual]:
-            continue
-        for adj, _, distancia in subgrafo[cruzamento_atual]:
-            nova_distancia = dist_atual + distancia
-            if nova_distancia < distancias[adj]:
-                distancias[adj] = nova_distancia
-                heapq.heappush(heap, (nova_distancia, adj))
-
-    return distancias
-
-def encontrar_centro_por_regiao(subgrafos_regioes):
-    centros = {}
-    for regiao, subgrafo in subgrafos_regioes.items():
-        melhor_cruzamento = None
-        menor_distancia_maxima = inf
-        
-        for cruzamento in subgrafo:
-            distancias = calcular_distancias(subgrafo, cruzamento)
-            distancia_maxima = max(distancias.values())  # Pior caso para esse cruzamento
-            
-            if distancia_maxima < menor_distancia_maxima:
-                menor_distancia_maxima = distancia_maxima
-                melhor_cruzamento = cruzamento
-        
-        centros[regiao] = (melhor_cruzamento, menor_distancia_maxima)
+def a_star_com_restricao_custo(self, origem, destino, custo_maximo):
+    """
+    Implementa o algoritmo A* com restrição de custo para encontrar o caminho mais rápido
+    entre dois cruzamentos, respeitando o limite de custo.
     
-    return centros
+    :param origem: ID do cruzamento de origem.
+    :param destino: ID do cruzamento de destino.
+    :param custo_maximo: Custo máximo permitido.
+    :param horario_embarque: Horário de embarque do usuário em minutos (ex: 505 para 8:05 AM).
+    :param tempo_transferencia: Tempo necessário para troca de transporte, em minutos.
+    :return: Rota como lista de arestas e meios de transporte, ou None se não houver rota viável.
+    """
+    # Fila de prioridade com (custo total, cruzamento atual, caminho percorrido)
+    pq = [(0, origem, [])]  # (custo acumulado, cruzamento atual, caminho)
+    visitados = {}  # dicionário para armazenar o custo mínimo encontrado para cada cruzamento
 
-'''
+    while pq:
+        custo_atual, cruzamento_atual, caminho = heapq.heappop(pq)
+
+        # Se o custo atual exceder o limite de custo, ignore essa rota
+        if custo_atual > custo_maximo:
+            continue
+
+        # Se já visitamos o cruzamento com custo menor, ignoramos
+        if cruzamento_atual in visitados and visitados[cruzamento_atual] <= custo_atual:
+            continue
+
+        # Marcar o cruzamento como visitado
+        visitados[cruzamento_atual] = custo_atual
+
+        # Se chegamos ao destino, retorna o caminho
+        if cruzamento_atual == destino:
+            return caminho
+
+        # Expande os vizinhos
+        for aresta in self.PlantaPesos.get(cruzamento_atual, []):
+            for meio, dados in aresta.meios_transporte.items():
+                # Calcula o tempo de espera para o transporte (método ou ônibus)
+                tempo_espera = 0
+                if meio in aresta.horarios:
+                    tempo_espera, proximo_horario = self.calcular_espera(horario_embarque, aresta.horarios[meio])
+                    if tempo_espera is None:
+                        continue  # Se não há horários disponíveis, ignora essa aresta
+
+                # Calcula o custo e tempo da viagem para esse meio de transporte
+                novo_custo = custo_atual + dados["custo"]
+                novo_tempo = dados["tempo"] + tempo_espera
+
+                # Adiciona tempo de transferência se houver mudança de transporte
+                if caminho and caminho[-1][1] != meio:
+                    tempo_transferencia, _ = self.calcular_espera(horario_embarque, aresta.horarios[meio])
+                    novo_tempo += tempo_transferencia  # Adiciona o tempo de transferência calculado
+
+                # Se o custo acumulado é menor que o custo máximo, adiciona a fila
+                if novo_custo <= custo_maximo:
+                    novo_caminho = caminho + [(aresta, meio, tempo_espera)]
+                    heapq.heappush(pq, (novo_tempo, aresta.destino, novo_caminho))
+
+    return None  # Caso não haja caminho viável
+
+def calcular_espera(self, horario_embarque, horarios_transporte):
+    """
+    Calcula o tempo de espera até o próximo horário de transporte disponível.
+    
+    :param horario_embarque: Horário de embarque do usuário em minutos desde meia-noite.
+    :param horarios_transporte: Lista de horários de chegada do transporte (ex: metrô ou ônibus).
+    
+    :return: Tempo de espera até o próximo transporte, em minutos, ou None se não houver horários disponíveis.
+    """
+    # Encontra o próximo horário de chegada disponível para o transporte
+    proximo_horario = min(
+        (h for h in horarios_transporte if h >= horario_embarque),
+        default=float('inf')  # Se não houver horários futuros, retorna infinito
+    )
+    
+    if proximo_horario == float('inf'):
+        return None  # Se não há horários disponíveis, retorna None
+
+    # Calcula o tempo de espera até o próximo horário disponível
+    tempo_espera = proximo_horario - horario_embarque
+    return tempo_espera, proximo_horario
