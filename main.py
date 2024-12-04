@@ -400,6 +400,15 @@ class Cidade:
 
         return None
 
+    def mapear_imoveis_para_segmentos(self):
+        imovel_para_segmento = {}
+
+        for segmento in self.Segmentos.values(): # for segmento in lista_de_segmentos
+            for imovel_id, imovel in segmento.conjunto_de_imoveis.items(): 
+                imovel_para_segmento[imovel] = segmento
+
+        return imovel_para_segmento
+
 def factor_k(k):
     for i in range(int(math.sqrt(k)), 0, -1):
         if k % i == 0:
