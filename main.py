@@ -57,7 +57,6 @@ class Cidade:
         self.Regioes = {}
         self.Cruzamentos = {}
 
-        
 
     def adicionar_segmento(self, segmento):
         self.Segmentos[segmento.ID_do_segmento] = segmento
@@ -250,7 +249,10 @@ class Cidade:
                     melhor_cruzamento = cruzamento_id
 
             self.estacoes[regiao_id] = melhor_cruzamento
-
+    
+    def is_station(self, cruzamento_id):
+        return cruzamento_id in self.estacoes
+    
     def conectar_estacoes_com_kruskal(self):
         """
         Conecta as estações de metrô utilizando o algoritmo de Kruskal para encontrar a árvore geradora mínima.
@@ -489,3 +491,24 @@ def calcular_espera(self, horario_embarque, horarios_transporte):
     # Calcula o tempo de espera até o próximo horário disponível
     tempo_espera = proximo_horario - horario_embarque
     return tempo_espera, proximo_horario
+
+
+class Aresta:
+    def _init_(self, Origem_ID, Destino_ID):
+        self.origem = Origem_ID
+        self.destino = Destino_ID
+        self.meios_de_transporte = {
+            "metro": None,
+            "onibus": None,
+            "taxi": None,
+            "Andar": None
+        }
+
+    def adicionar_transporte(self, meio, tempo, custo):
+        if meio in self.meios_de_transporte and meio != "metro":
+            self.meios_de_transporte[meio] = {"tempo": tempo, "custo": custo, "acessivel": True}
+        
+        if meio == "metro": # Dado que self.origem é o Id do cruzamento, verifica se esse cruzamento é estação ou não
+            self.meios_de_transporte[meio] = {"tempo": tempo, "custo": custo, 
+                                              "acessivel": Cidade.is_station(self.origem)} # se for estação, é acessível
+            
