@@ -229,49 +229,42 @@ class Cidade:
     
     def planejar_metro(self):
         """
-        algritmo de planejamento do metrô usando Prim MST.
-        Retorna lista de segmentos que formam a árvore geradora minima.
+        Planeja a linha de metrô, escolhendo uma estação por região e encontrando o menor caminho entre elas.
         """
-        if not self.Segmentos:
-            print("Segmentos vazios!")
-            return []
-        primeiro_segmento = next(iter(self.Segmentos.values()))
-        inicial = primeiro_segmento.cruzamento_inicial.ID
+
+        regioes = list(self.Regioes.keys())
+        estacoes = {}  # dicionário: região -> ID do cruzamento da estação
+        for regiao_id in regioes:
+            estacoes[regiao_id] = min(self.Regioes[regiao_id])
+
+        regioes_ordenadas = sorted(regioes)
+
+
+        caminho_estacoes = []
         
-        visitados = set()
-        mst = [] 
-        heap = []  
-        
-        for segmento in self.Segmentos.values():
-            if segmento.cruzamento_inicial.ID == inicial:
-                heapq.heappush(heap, (segmento.custo_de_escavacao, segmento))
-            elif segmento.cruzamento_final.ID == inicial:
-                heapq.heappush(heap, (segmento.custo_de_escavacao, segmento))
-        
-        visitados.add(inicial)
-        
-        while heap:
-            custo, segmento = heapq.heappop(heap)
+        if len(regioes_ordenadas) > 0:
             
-            if segmento.cruzamento_inicial.ID not in visitados:
-                proximo_cruzamento = segmento.cruzamento_inicial.ID
-            elif segmento.cruzamento_final.ID not in visitados:
-                proximo_cruzamento = segmento.cruzamento_final.ID
-            else:
-                continue  
-            
-            mst.append(segmento)
-            visitados.add(proximo_cruzamento)
-            
-            for seg in self.Segmentos.values():
-                if (seg.cruzamento_inicial.ID == proximo_cruzamento and 
-                    seg.cruzamento_final.ID not in visitados):
-                    heapq.heappush(heap, (seg.custo_de_escavacao, seg))
-                elif (seg.cruzamento_final.ID == proximo_cruzamento and 
-                    seg.cruzamento_inicial.ID not in visitados):
-                    heapq.heappush(heap, (seg.custo_de_escavacao, seg))
-        
-        return mst
+            inicio = estacoes[regioes_ordenadas[0]]
+
+            for i in range(len(regioes_ordenadas) -1):
+                regiao_atual = regioes_ordenadas[i]
+                regiao_seguinte = regioes_ordenadas[i+1]
+                
+                inicio_atual = estacoes[regiao_atual]
+                fim_atual = estacoes[regiao_seguinte]
+                
+                dist, prev = self.dijkstra(inicio_atual)
+                
+                if fim_atual in dist:
+                    caminho_segmentos = self.reconstruir_caminho(prev, fim_atual)
+                    caminho_estacoes.extend(caminho_segmentos)
+                else:
+                    print(f"Erro: Não há caminho entre as estações das regiões {regiao_atual} e {regiao_seguinte}")
+                    return []
+                
+        return caminho_estacoes
+
+
 
 
 def factor_k(k):
