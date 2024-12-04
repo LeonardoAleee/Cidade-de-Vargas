@@ -798,16 +798,7 @@ class Mapa:
                     elif meio == "onibus":
                         dados["tempo"] /= fator_onibus    
 
-    def atualizar_condicoes_transito_randomico(self):  
-        for cruzamento_id, arestas in self.grafo.items():
-            for aresta in arestas:
-                for meio, dados in aresta.meios_de_transporte.items():
-                    if meio == "taxi":
-                        fator_taxi = random.uniform(0.5, 1.5)
-                        dados["tempo"] *= fator_taxi  # Ajusta o tempo do táxi
-                    elif meio == "onibus":
-                        fator_onibus = random.uniform(0.7, 1.3)
-                        dados["tempo"] *= fator_onibus  # Ajusta o tempo do ônibus
+
 
 
 def buscar_rota(map, origem_id, destino_id, custo_maximo):
