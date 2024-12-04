@@ -120,4 +120,10 @@ rota_atualizada = buscar_rota(mapa, origem, destino, custo_maximo)
 # Exibir detalhes da rota atualizada
 exibir_detalhes_rota(rota_atualizada)
 
+mapa.atualizar_condicoes_transito_randomico()
+# Buscar rota novamente com as condições de trânsito atualizadas
+print("\nBuscando rota com condições de trânsito atualizadas:")
+rota_atualizada = buscar_rota(mapa, origem, destino, custo_maximo)
 
+# Exibir detalhes da rota atualizada
+exibir_detalhes_rota(rota_atualizada)

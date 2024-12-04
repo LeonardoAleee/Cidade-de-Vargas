@@ -798,7 +798,25 @@ class Mapa:
                     elif meio == "onibus":
                         dados["tempo"] /= fator_onibus    
 
-
+    def atualizar_condicoes_transito_randomico(self):
+        """
+        Atualiza as velocidades dos meios de transporte afetados pelo trânsito.
+        
+        :param fator_taxi: Fator de ajuste para a velocidade do táxi (ex.: 0.5 para reduzir pela metade).
+        :param fator_onibus: Fator de ajuste para a velocidade do ônibus.
+        """
+        for cruzamento_id, arestas in self.grafo.items():
+            for aresta in arestas:
+                for meio, dados in aresta.meios_de_transporte.items():
+                    if dados is None:
+                        continue
+                    
+                    # Ajustar velocidade para táxi e ônibus
+                    if meio == "taxi":
+                        dados["tempo"] /= random.random()  # Reduzir ou aumentar tempo de viagem
+                    elif meio == "onibus":
+                        dados["tempo"] /= random.random()
+    
 
 
 def buscar_rota(map, origem_id, destino_id, custo_maximo):
