@@ -1,7 +1,7 @@
-'''
 from main import *
 import random
 import time
+import matplotlib.pyplot as plt
 
 class TesteRotas:
     def __init__(self, mapa):
@@ -74,42 +74,16 @@ class TesteRotas:
 
         return estatisticas
 
-if __name__ == "__main__":
-    # Gera uma cidade de exemplo
-    cidade = generate_city(10, 10, 4)  # Grid 10x10 com 4 regiões
-   
-    # Configura as rotas de ônibus e metrô
-    cidade.definir_estacoes()
-    cidade.planejar_metro()
-
-
-    mapa = Mapa(cidade)
-    mapa.construir_grafo()
-
-
-
-    # Realiza os testes
-    tester = TesteRotas(mapa)
-    estatisticas = tester.realizar_teste(num_testes=100, max_custo=500)
-
-    # Exibe as estatísticas
-    print("Estatísticas dos Testes de Rotas:")
-    for chave, valor in estatisticas.items():
-        print(f"{chave}: {valor}")
-'''
-from main import *
-
-import time
-
 def testar_tempo_busca_rota():
     """
     Testa o tempo necessário para buscar rotas em cidades de tamanhos variados.
     """
     import math
-    tamanhos = [10, 100, 1000, 10000, 100000]
+    tamanhos = [10, 20, 30, 50, 75, 100, 200, 300, 500, 750, 1000,2000, 5000, 7500, 10000]
     k = 5  # Número de regiões
     custo_maximo = 1000
     resultados = []
+    tempos = []
 
     for N in tamanhos:
         print(f"\nTestando para N = {N} cruzamentos...")
@@ -128,7 +102,6 @@ def testar_tempo_busca_rota():
         mapa = Mapa(cidade)
         mapa.construir_grafo()
 
-
         cruzamentos = list(cidade.Cruzamentos.keys())
         origem = cruzamentos[0]  # Primeiro cruzamento
         destino = cruzamentos[-1]  # Último cruzamento
@@ -141,22 +114,58 @@ def testar_tempo_busca_rota():
 
             if rota:
                 print(f"Rota encontrada com sucesso para N = {N}.")
-                resultados.append((N, tempo_execucao))
+                resultados.append(N)
+                tempos.append(tempo_execucao)
                 print(f"Tempo de execução para N = {N}: {tempo_execucao:.4f} segundos")
             else:
                 print(f"Nenhuma rota encontrada para N = {N}.")
-                resultados.append((N, None))
+                resultados.append(N)
+                tempos.append(None)
 
         except Exception as e:
             print(f"Erro ao processar N = {N}: {e}")
-            resultados.append((N, None))
+            resultados.append(N)
+            tempos.append(None)
             continue
 
     print("\nResultados:")
-    for N, tempo in resultados:
+    for N, tempo in zip(resultados, tempos):
         if tempo is not None:
             print(f"N = {N} cruzamentos: {tempo:.4f} segundos")
         else:
             print(f"N = {N} cruzamentos: Não foi possível calcular")
 
-testar_tempo_busca_rota()
+    # Plotar os resultados
+    tamanhos_validos = [N for N, tempo in zip(resultados, tempos) if tempo is not None]
+    tempos_validos = [tempo for tempo in tempos if tempo is not None]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(tamanhos_validos, tempos_validos, marker='o')
+    plt.xlabel('Número de Cruzamentos (N)')
+    plt.ylabel('Tempo de Execução (s)')
+    plt.title('Tempo de Execução da Busca de Rotas em Função do Tamanho da Cidade')
+    plt.grid(True)
+    plt.show()
+
+if __name__ == "__main__":
+    # Gera uma cidade de exemplo
+    cidade = generate_city(10, 10, 4)  # Grid 10x10 com 4 regiões
+
+    # Configura as rotas de ônibus e metrô
+    cidade.definir_estacoes()
+    cidade.planejar_metro()
+
+    mapa = Mapa(cidade)
+    mapa.construir_grafo()
+
+    # Realiza os testes
+    tester = TesteRotas(mapa)
+    estatisticas = tester.realizar_teste(num_testes=100, max_custo=500)
+
+    # Exibe as estatísticas
+    print("Estatísticas dos Testes de Rotas:")
+    for chave, valor in estatisticas.items():
+        print(f"{chave}: {valor}")
+
+    # Testa o tempo de busca de rotas
+    testar_tempo_busca_rota()
