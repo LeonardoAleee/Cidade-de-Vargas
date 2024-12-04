@@ -610,3 +610,76 @@ class Aresta:
             self.meios_de_transporte[meio] = {"tempo": tempo, "custo": custo, 
                                               "acessivel": Cidade.is_station(self.origem)} # se for estação, é acessível
             
+class Mapa:
+    def __init__(self, cidade):
+        """
+        Inicializa o Mapa com base na cidade fornecida.
+        
+        :param cidade: Instância da classe Cidade, que contém os segmentos e cruzamentos.
+        """
+        self.cidade = cidade
+        self.grafo = defaultdict(list)  # Representação do grafo multimodal como lista de adjacência
+
+    def construir_grafo(self):
+        """
+        Constrói o grafo multimodal da cidade.
+        Para cada segmento da cidade, inicializa os meios de transporte e calcula
+        tempo e custo para cada um, criando instâncias de Aresta.
+        """
+        for segmento in self.cidade.Segmentos.values():
+            cruz_inicial = segmento.cruzamento_inicial.ID
+            cruz_final = segmento.cruzamento_final.ID
+
+            # Inicializar os meios de transporte disponíveis no segmento
+            meios_de_transporte = self.inicializar_meios_transporte(segmento)
+
+            # Criar e adicionar arestas para cada meio de transporte
+            for meio, dados in meios_de_transporte.items():
+                tempo = dados['tempo']
+                custo = dados['custo']
+
+                # Criar as arestas (ida e volta, pois o grafo é bidirecional)
+                aresta_ida = Aresta(cruz_inicial, cruz_final)
+                aresta_ida.adicionar_transporte(meio, tempo, custo)
+
+                aresta_volta = Aresta(cruz_final, cruz_inicial)
+                aresta_volta.adicionar_transporte(meio, tempo, custo)
+
+                # Adicionar as arestas ao grafo
+                self.grafo[cruz_inicial].append(aresta_ida)
+                self.grafo[cruz_final].append(aresta_volta)
+
+    def inicializar_meios_transporte(self, segmento):
+        """
+        Inicializa os meios de transporte disponíveis para um segmento.
+        
+        :param segmento: Instância do objeto Segmento.
+        :return: Um dicionário contendo os meios de transporte e seus dados (tempo e custo).
+        """
+        meios_de_transporte = {}
+
+        # Definições de transporte: ajustar conforme necessário
+        velocidade_andar = 5  # km/h
+        velocidade_onibus = 40  # km/h
+        velocidade_taxi = 60  # km/h
+        custo_onibus = 2.50  # custo fixo
+        custo_taxi_por_km = 1.50  # custo por km
+
+        # Cálculo para "andar"
+        tempo_andar = segmento.distancia / (velocidade_andar / 60)  # em minutos
+        meios_de_transporte["Andar"] = {"tempo": tempo_andar, "custo": 0}
+
+        # Cálculo para "ônibus"
+        tempo_onibus = segmento.distancia / (velocidade_onibus / 60)  # em minutos
+        meios_de_transporte["onibus"] = {"tempo": tempo_onibus, "custo": custo_onibus}
+
+        # Cálculo para "táxi"
+        tempo_taxi = segmento.distancia / (velocidade_taxi / 60)  # em minutos
+        custo_taxi = segmento.distancia * custo_taxi_por_km
+        meios_de_transporte["taxi"] = {"tempo": tempo_taxi, "custo": custo_taxi}
+
+        # Opcional: adicionar "metrô" se o segmento conecta estações
+        if segmento.cruzamento_inicial.ID in self.cidade.estacoes and segmento.cruzamento_final.ID in self.cidade.estacoes:
+            meios_de_transporte["metro"] = {"tempo": tempo_onibus, "custo": 1.50}  # Exemplo de custo fixo
+
+        return meios_de_transporte
