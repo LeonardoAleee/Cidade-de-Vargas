@@ -20,7 +20,7 @@ origem_id = 0  # ID do cruzamento inicial
 destino_id = 24  # ID do cruzamento final (canto oposto da grade)
 
 # Definir um custo máximo para a rota
-custo_maximo = 50.0  # Limite de custo permitido
+custo_maximo = 20.0  # Limite de custo permitido
 
 # Buscar a rota
 rota = buscar_rota(mapa, origem_id, destino_id, custo_maximo)

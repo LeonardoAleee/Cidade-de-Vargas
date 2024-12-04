@@ -601,15 +601,21 @@ class Aresta:
             "taxi": None,
             "Andar": None
         }
+        self.tempos_transferencia = {}  # Novo: tempos de transferência entre modos
 
     def adicionar_transporte(self, meio, tempo, custo):
         if meio in self.meios_de_transporte and meio != "metro":
             self.meios_de_transporte[meio] = {"tempo": tempo, "custo": custo, "acessivel": True}
         
-        if meio == "metro": # Dado que self.origem é o Id do cruzamento, verifica se esse cruzamento é estação ou não
+        if meio == "metro":
             self.meios_de_transporte[meio] = {"tempo": tempo, "custo": custo, 
-                                              "acessivel": Cidade.is_station(self.origem)} # se for estação, é acessível
-            
+                                              "acessivel": Cidade.is_station(self.origem)}
+
+    def adicionar_tempo_transferencia(self, de_meio, para_meio, tempo):
+        if de_meio not in self.tempos_transferencia:
+            self.tempos_transferencia[de_meio] = {}
+        self.tempos_transferencia[de_meio][para_meio] = tempo
+           
 class Mapa:
     def __init__(self, cidade):
         """
@@ -621,31 +627,30 @@ class Mapa:
         self.grafo = defaultdict(list)  # Representação do grafo multimodal como lista de adjacência
 
     def construir_grafo(self):
-        """
-        Constrói o grafo multimodal da cidade.
-        Para cada segmento da cidade, inicializa os meios de transporte e calcula
-        tempo e custo para cada um, criando instâncias de Aresta.
-        """
         for segmento in self.cidade.Segmentos.values():
             cruz_inicial = segmento.cruzamento_inicial.ID
             cruz_final = segmento.cruzamento_final.ID
 
-            # Inicializar os meios de transporte disponíveis no segmento
             meios_de_transporte = self.inicializar_meios_transporte(segmento)
 
-            # Criar e adicionar arestas para cada meio de transporte
             for meio, dados in meios_de_transporte.items():
                 tempo = dados['tempo']
                 custo = dados['custo']
 
-                # Criar as arestas (ida e volta, pois o grafo é bidirecional)
                 aresta_ida = Aresta(cruz_inicial, cruz_final)
                 aresta_ida.adicionar_transporte(meio, tempo, custo)
 
                 aresta_volta = Aresta(cruz_final, cruz_inicial)
                 aresta_volta.adicionar_transporte(meio, tempo, custo)
 
-                # Adicionar as arestas ao grafo
+                # Definir tempos de transferência
+                for m1 in meios_de_transporte.keys():
+                    for m2 in meios_de_transporte.keys():
+                        if m1 != m2:
+                            # Exemplo: tempo fixo de transferência
+                            aresta_ida.adicionar_tempo_transferencia(m1, m2, 5)  # 5 minutos
+                            aresta_volta.adicionar_tempo_transferencia(m1, m2, 5)  # 5 minutos
+
                 self.grafo[cruz_inicial].append(aresta_ida)
                 self.grafo[cruz_final].append(aresta_volta)
 
@@ -663,7 +668,7 @@ class Mapa:
         velocidade_onibus = 40  # km/h
         velocidade_taxi = 60  # km/h
         custo_onibus = 2.50  # custo fixo
-        custo_taxi_por_km = 1.50  # custo por km
+        custo_taxi_por_km = 3.50  # custo por km
 
         # Cálculo para "andar"
         tempo_andar = segmento.distancia / (velocidade_andar / 60)  # em minutos
@@ -685,55 +690,44 @@ class Mapa:
         return meios_de_transporte
 
     def caminho_mais_curto_com_restricao(self, origem_id, destino_id, custo_maximo):
-        """
-        Encontra o caminho mais rápido entre dois cruzamentos respeitando uma restrição de custo.
-        
-        :param origem_id: ID do cruzamento de origem.
-        :param destino_id: ID do cruzamento de destino.
-        :param custo_maximo: Custo máximo permitido para o caminho.
-        :return: Rota como uma lista de arestas e meios de transporte, ou None se não houver rota viável.
-        """
-        # Fila de prioridade para o A* (tempo acumulado, custo acumulado, contador, cruzamento atual, caminho)
         pq = []
-        counter = 0  # Contador para desempate
-        heapq.heappush(pq, (0, 0, counter, origem_id, []))
+        counter = 0
+        heapq.heappush(pq, (0, 0, counter, origem_id, None, []))  # Adiciona `None` para o meio anterior
         visitados = {}
 
         while pq:
-            tempo_atual, custo_atual, _, cruzamento_atual, caminho = heapq.heappop(pq)
+            tempo_atual, custo_atual, _, cruzamento_atual, meio_anterior, caminho = heapq.heappop(pq)
 
-            # Se o custo exceder o máximo permitido, ignoramos
             if custo_atual > custo_maximo:
                 continue
 
-            # Se já visitamos o cruzamento com um custo menor, ignoramos
             if cruzamento_atual in visitados and visitados[cruzamento_atual] <= custo_atual:
                 continue
 
-            # Marcar o cruzamento como visitado
             visitados[cruzamento_atual] = custo_atual
 
-            # Se chegamos ao destino, retornamos o caminho
             if cruzamento_atual == destino_id:
                 return caminho
 
-            # Expandir os vizinhos
             for aresta in self.grafo.get(cruzamento_atual, []):
                 for meio, dados in aresta.meios_de_transporte.items():
-                    # Verificar se os dados do meio de transporte não são None
                     if dados is None:
                         continue
 
                     novo_tempo = tempo_atual + dados["tempo"]
                     novo_custo = custo_atual + dados["custo"]
 
-                    # Adicionar à fila se o custo for válido
+                    # Adicionar tempo de transferência se necessário
+                    if meio_anterior and meio_anterior != meio:
+                        transferencia = aresta.tempos_transferencia.get(meio_anterior, {}).get(meio, 0)
+                        novo_tempo += transferencia
+
                     if novo_custo <= custo_maximo:
                         novo_caminho = caminho + [(aresta, meio)]
-                        counter += 1  # Incrementar o contador
-                        heapq.heappush(pq, (novo_tempo, novo_custo, counter, aresta.destino, novo_caminho))
+                        counter += 1
+                        heapq.heappush(pq, (novo_tempo, novo_custo, counter, aresta.destino, meio, novo_caminho))
 
-        return None  # Nenhum caminho viável encontrado
+        return None
 
 
     def heuristica(self, cruzamento_atual, cruzamento_destino):
