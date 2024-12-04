@@ -61,3 +61,61 @@ def simular_transito():
 # Atualizar condições com base em simulação
 fator_taxi, fator_onibus = simular_transito()
 mapa.atualizar_condicoes_transito(fator_taxi, fator_onibus)
+
+# Criar a cidade
+cidade = generate_city(5, 5, 4)
+
+# Construir a planta inicial da cidade para análise
+cidade.construir_planta_tarefa1()
+cidade.construir_planta_tarefa2()
+
+# Exibir informações sobre a cidade
+print(f"Cidade criada com {len(cidade.Cruzamentos)} cruzamentos.")
+print(f"Total de segmentos na cidade: {len(cidade.Segmentos)}")
+
+# Definir as estações e planejar as linhas de metrô e ônibus
+cidade.definir_estacoes()
+cidade.planejar_linha_onibus(list(cidade.Cruzamentos.values())[0])
+
+# Criar o mapa multimodal
+mapa = Mapa(cidade)
+mapa.construir_grafo()
+
+# Configurar origem, destino e custo máximo
+origem = 0  # ID do cruzamento de origem
+destino = 24  # ID do cruzamento de destino
+custo_maximo = 15  # Exemplo de custo máximo
+
+# Buscar rota
+print("\nBuscando rota:")
+rota = buscar_rota(mapa, origem, destino, custo_maximo)
+
+# Calcular o tempo total de percurso e exibir detalhes da rota
+def exibir_detalhes_rota(rota):
+    if not rota:
+        print("Nenhuma rota encontrada.")
+        return
+    
+    tempo_total = 0
+    print("\nDetalhes da Rota:")
+    for aresta, meio in rota:
+        tempo = aresta.meios_de_transporte[meio]["tempo"]
+        tempo_total += tempo
+        print(f"{meio.capitalize()}: {aresta.origem} -> {aresta.destino}, Tempo: {tempo:.2f} min")
+    
+    print(f"\nTempo total de percurso: {tempo_total:.2f} min")
+
+# Exibir detalhes da rota encontrada
+exibir_detalhes_rota(rota)
+
+# Atualizar condições de trânsito
+fator_taxi = 0.7  # Reduz velocidade dos táxis para 70%
+fator_onibus = 0.6  # Reduz velocidade dos ônibus para 60%
+mapa.atualizar_condicoes_transito(fator_taxi, fator_onibus)
+
+# Buscar rota novamente com as condições de trânsito atualizadas
+print("\nBuscando rota com condições de trânsito atualizadas:")
+rota_atualizada = buscar_rota(mapa, origem, destino, custo_maximo)
+
+# Exibir detalhes da rota atualizada
+exibir_detalhes_rota(rota_atualizada)

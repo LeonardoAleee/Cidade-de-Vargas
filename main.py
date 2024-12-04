@@ -774,14 +774,10 @@ class Mapa:
 
 
     def heuristica(self, cruzamento_atual, cruzamento_destino):
-        """
-        Estima o custo heurístico entre dois cruzamentos. Neste exemplo, retorna 0 para uma implementação simples.
-        
-        :param cruzamento_atual: ID do cruzamento atual.
-        :param cruzamento_destino: ID do cruzamento de destino.
-        :return: Estimativa do custo heurístico.
-        """
-        return 0
+        pos_atual = self.cidade.Cruzamentos[cruzamento_atual].posicao  # Posição (x, y)
+        pos_destino = self.cidade.Cruzamentos[cruzamento_destino].posicao
+        return math.sqrt((pos_atual[0] - pos_destino[0])**2 + (pos_atual[1] - pos_destino[1])**2)
+
 
     def atualizar_condicoes_transito(self, fator_taxi, fator_onibus):
         """
@@ -801,6 +797,18 @@ class Mapa:
                         dados["tempo"] /= fator_taxi  # Reduzir ou aumentar tempo de viagem
                     elif meio == "onibus":
                         dados["tempo"] /= fator_onibus    
+
+    def atualizar_condicoes_transito_randomico(self):  
+        for cruzamento_id, arestas in self.grafo.items():
+            for aresta in arestas:
+                for meio, dados in aresta.meios_de_transporte.items():
+                    if meio == "taxi":
+                        fator_taxi = random.uniform(0.5, 1.5)
+                        dados["tempo"] *= fator_taxi  # Ajusta o tempo do táxi
+                    elif meio == "onibus":
+                        fator_onibus = random.uniform(0.7, 1.3)
+                        dados["tempo"] *= fator_onibus  # Ajusta o tempo do ônibus
+
 
 def buscar_rota(map, origem_id, destino_id, custo_maximo):
     """
