@@ -54,6 +54,7 @@ class Cidade:
     def __init__(self):
         self.Segmentos = {}
         self.PlantaPesos = {}
+        self.PlantaCustosEscavacao = {}
         self.Regioes = {}
         self.Cruzamentos = {}
 
@@ -225,6 +226,65 @@ class Cidade:
 
         return path_segments
 
+    def construir_planta_tarefa1(self):
+        self.PlantaCustosEscavacao = {}  # Alterado de PlantaPesos para PlantaCustosEscavacao
+        custos_escavacao = []
+        
+        for segmento in self.Segmentos.values():
+            ci_id = segmento.cruzamento_inicial.ID
+            cf_id = segmento.cruzamento_final.ID
+
+            # Calcular o custo de escavação com base nos tipos de imóveis adjacentes
+            custo_escavacao = (
+                3.0 * segmento.quantidade_comercial -  # Ajuste de custo para área comercial
+                5.0 * segmento.quantidade_turistico +  # Ajuste de custo para área turística
+                1.0 * segmento.quantidade_residencial +  # Ajuste de custo para área residencial
+                2.0 * segmento.quantidade_industrial  # Ajuste de custo para área industrial
+            )
+            custos_escavacao.append(custo_escavacao)
+            segmento.custo_escavacao = custo_escavacao  # Armazena o custo de escavação no segmento
+
+        min_custo = min(custos_escavacao)
+        shift = -min_custo + 1 if min_custo < 0 else 0  # Ajuste para custos não negativos
+
+        for segmento in self.Segmentos.values():
+            ci_id = segmento.cruzamento_inicial.ID
+            cf_id = segmento.cruzamento_final.ID
+
+            adjusted_custo = segmento.custo_escavacao + shift
+
+            # Armazenar os custos de escavação ajustados no dicionário PlantaCustosEscavacao
+            self.PlantaCustosEscavacao.setdefault(ci_id, []).append((cf_id, adjusted_custo, segmento))
+            self.PlantaCustosEscavacao.setdefault(cf_id, []).append((ci_id, adjusted_custo, segmento))
+
+    def dijkstra_custo_escavacao(self, start):
+        """
+        Calcula o menor custo de escavação de um cruzamento de partida para todos os outros cruzamentos
+        usando o algoritmo de Dijkstra.
+        """
+        # Dicionários para armazenar os custos e os caminhos anteriores
+        custo_escavacao = {}
+        prev = {}
+        pq = [(0, start, None)]  # (custo acumulado, nó atual, segmento anterior)
+        custo_escavacao[start] = 0
+
+        while pq:
+            custo, current, segmento = heapq.heappop(pq)
+
+            # Se o custo encontrado for maior que o mínimo registrado, continue
+            if custo > custo_escavacao.get(current, float('inf')):
+                continue
+
+            # Percorrer os vizinhos e calcular os custos de escavação
+            for neighbor, custo_vizinho, seg in self.PlantaCustosEscavacao.get(current, []):
+                novo_custo = custo + custo_vizinho  # Acumula o custo de escavação
+                if neighbor not in custo_escavacao or novo_custo < custo_escavacao[neighbor]:
+                    custo_escavacao[neighbor] = novo_custo
+                    prev[neighbor] = (current, seg)
+                    heapq.heappush(pq, (novo_custo, neighbor, seg))
+
+        return custo_escavacao, prev
+
     def definir_estacoes(self):
         """
         Define as estações de metrô para cada região com base na distância mínima do ponto mais longe.
@@ -262,7 +322,7 @@ class Cidade:
         # Calcula as menores distâncias entre todas as estações usando Dijkstra
         menores_distancias = {}
         for estacao in estacoes_ids:
-            distancias, _ = self.dijkstra(estacao)
+            distancias, _ = self.dijkstra_custo_escavacao(estacao)
             menores_distancias[estacao] = distancias
 
         # Lista de arestas no formato (custo, estação_a, estação_b)
