@@ -627,6 +627,9 @@ class Mapa:
         self.grafo = defaultdict(list)  # Representação do grafo multimodal como lista de adjacência
 
     def construir_grafo(self):
+        """
+        Constrói o grafo multimodal da cidade.
+        """
         for segmento in self.cidade.Segmentos.values():
             cruz_inicial = segmento.cruzamento_inicial.ID
             cruz_final = segmento.cruzamento_final.ID
@@ -643,17 +646,57 @@ class Mapa:
                 aresta_volta = Aresta(cruz_final, cruz_inicial)
                 aresta_volta.adicionar_transporte(meio, tempo, custo)
 
-                # Definir tempos de transferência
-                for m1 in meios_de_transporte.keys():
-                    for m2 in meios_de_transporte.keys():
-                        if m1 != m2:
-                            # Exemplo: tempo fixo de transferência
-                            aresta_ida.adicionar_tempo_transferencia(m1, m2, 5)  # 5 minutos
-                            aresta_volta.adicionar_tempo_transferencia(m1, m2, 5)  # 5 minutos
-
                 self.grafo[cruz_inicial].append(aresta_ida)
                 self.grafo[cruz_final].append(aresta_volta)
 
+
+    def obter_rota(self, endereco_origem, endereco_destino, custo_maximo):
+        """
+        Encontra a rota mais rápida entre dois endereços, respeitando um custo máximo.
+        
+        :param endereco_origem: Endereço de origem (ou ID do cruzamento).
+        :param endereco_destino: Endereço de destino (ou ID do cruzamento).
+        :param custo_maximo: Custo máximo permitido para a rota.
+        :return: Detalhes da rota ou uma mensagem de erro.
+        """
+        # Identificar os cruzamentos correspondentes aos endereços
+        cruzamento_origem = self._encontrar_cruzamento_por_endereco(endereco_origem)
+        cruzamento_destino = self._encontrar_cruzamento_por_endereco(endereco_destino)
+
+        if not cruzamento_origem or not cruzamento_destino:
+            return f"Endereço inválido: {'origem' if not cruzamento_origem else 'destino'} não encontrado."
+
+        # Buscar a rota mais curta com restrição de custo
+        rota = self.caminho_mais_curto_com_restricao(cruzamento_origem, cruzamento_destino, custo_maximo)
+        
+        if not rota:
+            return f"Nenhuma rota viável encontrada dentro do custo máximo de {custo_maximo}."
+
+        # Formatar os detalhes da rota
+        detalhes_rota = []
+        for aresta, meio in rota:
+            detalhes_rota.append(f"Cruzamento {aresta.origem} -> {aresta.destino} via {meio}")
+
+        return "\n".join(detalhes_rota)
+
+    def _encontrar_cruzamento_por_endereco(self, endereco):
+        """
+        Encontra o ID do cruzamento associado a um endereço.
+        :param endereco: Endereço fornecido pelo usuário (CEP ou outro identificador).
+        :return: ID do cruzamento correspondente.
+        """
+        # Caso o endereço já seja um ID de cruzamento
+        if isinstance(endereco, int) and endereco in self.cidade.Cruzamentos:
+            return endereco
+
+        # Procurar pelo endereço no conjunto de imóveis
+        for segmento in self.cidade.Segmentos.values():
+            for imovel in segmento.conjunto_de_imoveis.values():
+                if imovel.rua == endereco or imovel.cep == endereco:
+                    return self.cidade.cruzamento_mais_proximo(imovel).ID
+
+        return None
+    
     def inicializar_meios_transporte(self, segmento):
         """
         Inicializa os meios de transporte disponíveis para um segmento.
@@ -739,7 +782,26 @@ class Mapa:
         :return: Estimativa do custo heurístico.
         """
         return 0
-    
+
+    def atualizar_condicoes_transito(self, fator_taxi, fator_onibus):
+        """
+        Atualiza as velocidades dos meios de transporte afetados pelo trânsito.
+        
+        :param fator_taxi: Fator de ajuste para a velocidade do táxi (ex.: 0.5 para reduzir pela metade).
+        :param fator_onibus: Fator de ajuste para a velocidade do ônibus.
+        """
+        for cruzamento_id, arestas in self.grafo.items():
+            for aresta in arestas:
+                for meio, dados in aresta.meios_de_transporte.items():
+                    if dados is None:
+                        continue
+                    
+                    # Ajustar velocidade para táxi e ônibus
+                    if meio == "taxi":
+                        dados["tempo"] /= fator_taxi  # Reduzir ou aumentar tempo de viagem
+                    elif meio == "onibus":
+                        dados["tempo"] /= fator_onibus    
+
 def buscar_rota(map, origem_id, destino_id, custo_maximo):
     """
     Envolve o algoritmo A* com restrição para facilitar o uso.
