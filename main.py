@@ -592,7 +592,7 @@ def calcular_espera(self, horario_embarque, horarios_transporte):
 
 
 class Aresta:
-    def _init_(self, Origem_ID, Destino_ID):
+    def __init__(self, Origem_ID, Destino_ID):
         self.origem = Origem_ID
         self.destino = Destino_ID
         self.meios_de_transporte = {
