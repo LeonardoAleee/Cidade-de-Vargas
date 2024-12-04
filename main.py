@@ -225,47 +225,105 @@ class Cidade:
 
         return path_segments
 
+    def definir_estacoes(self):
+        """
+        Define as estações de metrô para cada região com base na distância mínima do ponto mais longe.
+        """
+        self.estacoes = {}  # Dicionário: região -> ID do cruzamento da estação
 
-    
+        for regiao_id, cruzamentos in self.Regioes.items():
+            menor_max_distancia = float('inf')
+            melhor_cruzamento = None
+
+            for cruzamento_id in cruzamentos:
+                # Dijkstra para calcular as distâncias de cruzamento_id a todos os outros cruzamentos da região
+                distancias, _ = self.dijkstra(cruzamento_id)
+
+                # Considera apenas os cruzamentos dentro da região atual
+                max_distancia = max(
+                    distancias[c] for c in cruzamentos if c in distancias
+                )
+
+                # Atualiza o cruzamento se encontrar uma melhor opção
+                if max_distancia < menor_max_distancia:
+                    menor_max_distancia = max_distancia
+                    melhor_cruzamento = cruzamento_id
+
+            self.estacoes[regiao_id] = melhor_cruzamento
+
+    def conectar_estacoes_com_kruskal(self):
+        """
+        Conecta as estações de metrô utilizando o algoritmo de Kruskal para encontrar a árvore geradora mínima.
+        Considera o menor custo entre estações, mesmo que exija múltiplos segmentos.
+        """
+        # Lista de estações
+        estacoes_ids = list(self.estacoes.values())
+
+        # Calcula as menores distâncias entre todas as estações usando Dijkstra
+        menores_distancias = {}
+        for estacao in estacoes_ids:
+            distancias, _ = self.dijkstra(estacao)
+            menores_distancias[estacao] = distancias
+
+        # Lista de arestas no formato (custo, estação_a, estação_b)
+        arestas = []
+        for i, est_a in enumerate(estacoes_ids):
+            for est_b in estacoes_ids[i+1:]:
+                if est_b in menores_distancias[est_a]:
+                    custo = menores_distancias[est_a][est_b]
+                    arestas.append((custo, est_a, est_b))
+
+        # Ordena as arestas pelo custo
+        arestas.sort()
+
+        # Estruturas auxiliares para o algoritmo de Kruskal
+        parent = {}
+        rank = {}
+
+        def find(node):
+            if parent[node] != node:
+                parent[node] = find(parent[node])
+            return parent[node]
+
+        def union(node1, node2):
+            root1 = find(node1)
+            root2 = find(node2)
+
+            if root1 != root2:
+                if rank[root1] > rank[root2]:
+                    parent[root2] = root1
+                elif rank[root1] < rank[root2]:
+                    parent[root1] = root2
+                else:
+                    parent[root2] = root1
+                    rank[root1] += 1
+
+        # Inicializa os conjuntos disjuntos
+        for cruz in estacoes_ids:
+            parent[cruz] = cruz
+            rank[cruz] = 0
+
+        # Árvore geradora mínima resultante
+        mst = []
+
+        for custo, cruz_a, cruz_b in arestas:
+            if find(cruz_a) != find(cruz_b):
+                union(cruz_a, cruz_b)
+                mst.append((custo, cruz_a, cruz_b))
+
+        return mst
+
     def planejar_metro(self):
         """
-        Planeja a linha de metrô, escolhendo uma estação por região e encontrando o menor caminho entre elas.
+        Planeja as linhas de metrô da cidade.
         """
+        # Passo 1: Definir as estações para cada região
+        self.definir_estacoes()
 
-        regioes = list(self.Regioes.keys())
-        estacoes = {}  # dicionário: região -> ID do cruzamento da estação
-        for regiao_id in regioes:
-            estacoes[regiao_id] = min(self.Regioes[regiao_id])
+        # Passo 2: Conectar as estações usando Kruskal
+        mst = self.conectar_estacoes_com_kruskal()
 
-        regioes_ordenadas = sorted(regioes)
-
-
-        caminho_estacoes = []
-        
-        if len(regioes_ordenadas) > 0:
-            
-            inicio = estacoes[regioes_ordenadas[0]]
-
-            for i in range(len(regioes_ordenadas) -1):
-                regiao_atual = regioes_ordenadas[i]
-                regiao_seguinte = regioes_ordenadas[i+1]
-                
-                inicio_atual = estacoes[regiao_atual]
-                fim_atual = estacoes[regiao_seguinte]
-                
-                dist, prev = self.dijkstra(inicio_atual)
-                
-                if fim_atual in dist:
-                    caminho_segmentos = self.reconstruir_caminho(prev, fim_atual)
-                    caminho_estacoes.extend(caminho_segmentos)
-                else:
-                    print(f"Erro: Não há caminho entre as estações das regiões {regiao_atual} e {regiao_seguinte}")
-                    return []
-                
-        return caminho_estacoes
-
-
-
+        return mst
 
 def factor_k(k):
     for i in range(int(math.sqrt(k)), 0, -1):
