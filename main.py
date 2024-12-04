@@ -683,3 +683,85 @@ class Mapa:
             meios_de_transporte["metro"] = {"tempo": tempo_onibus, "custo": 1.50}  # Exemplo de custo fixo
 
         return meios_de_transporte
+
+    def caminho_mais_curto_com_restricao(self, origem_id, destino_id, custo_maximo):
+        """
+        Encontra o caminho mais rápido entre dois cruzamentos respeitando uma restrição de custo.
+        
+        :param origem_id: ID do cruzamento de origem.
+        :param destino_id: ID do cruzamento de destino.
+        :param custo_maximo: Custo máximo permitido para o caminho.
+        :return: Rota como uma lista de arestas e meios de transporte, ou None se não houver rota viável.
+        """
+        # Fila de prioridade para o A* (tempo acumulado, custo acumulado, contador, cruzamento atual, caminho)
+        pq = []
+        counter = 0  # Contador para desempate
+        heapq.heappush(pq, (0, 0, counter, origem_id, []))
+        visitados = {}
+
+        while pq:
+            tempo_atual, custo_atual, _, cruzamento_atual, caminho = heapq.heappop(pq)
+
+            # Se o custo exceder o máximo permitido, ignoramos
+            if custo_atual > custo_maximo:
+                continue
+
+            # Se já visitamos o cruzamento com um custo menor, ignoramos
+            if cruzamento_atual in visitados and visitados[cruzamento_atual] <= custo_atual:
+                continue
+
+            # Marcar o cruzamento como visitado
+            visitados[cruzamento_atual] = custo_atual
+
+            # Se chegamos ao destino, retornamos o caminho
+            if cruzamento_atual == destino_id:
+                return caminho
+
+            # Expandir os vizinhos
+            for aresta in self.grafo.get(cruzamento_atual, []):
+                for meio, dados in aresta.meios_de_transporte.items():
+                    # Verificar se os dados do meio de transporte não são None
+                    if dados is None:
+                        continue
+
+                    novo_tempo = tempo_atual + dados["tempo"]
+                    novo_custo = custo_atual + dados["custo"]
+
+                    # Adicionar à fila se o custo for válido
+                    if novo_custo <= custo_maximo:
+                        novo_caminho = caminho + [(aresta, meio)]
+                        counter += 1  # Incrementar o contador
+                        heapq.heappush(pq, (novo_tempo, novo_custo, counter, aresta.destino, novo_caminho))
+
+        return None  # Nenhum caminho viável encontrado
+
+
+    def heuristica(self, cruzamento_atual, cruzamento_destino):
+        """
+        Estima o custo heurístico entre dois cruzamentos. Neste exemplo, retorna 0 para uma implementação simples.
+        
+        :param cruzamento_atual: ID do cruzamento atual.
+        :param cruzamento_destino: ID do cruzamento de destino.
+        :return: Estimativa do custo heurístico.
+        """
+        return 0
+    
+def buscar_rota(map, origem_id, destino_id, custo_maximo):
+    """
+    Envolve o algoritmo A* com restrição para facilitar o uso.
+    
+    :param map: Instância da classe Mapa.
+    :param origem_id: ID do cruzamento de origem.
+    :param destino_id: ID do cruzamento de destino.
+    :param custo_maximo: Custo máximo permitido.
+    :return: Rota como lista de arestas e meios de transporte, ou mensagem de erro.
+    """
+    rota = map.caminho_mais_curto_com_restricao(origem_id, destino_id, custo_maximo)
+    if rota:
+        print("Rota encontrada:")
+        for aresta, meio in rota:
+            print(f"Cruzamento {aresta.origem} -> {aresta.destino} via {meio}")
+        return rota
+    else:
+        print("Nenhum caminho viável encontrado dentro do custo máximo.")
+        return None
