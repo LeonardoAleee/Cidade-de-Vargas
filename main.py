@@ -409,6 +409,22 @@ class Cidade:
 
         return imovel_para_segmento
 
+    def cruzamento_mais_proximo(self, imovel):
+        segmento = self.encontrar_segmento_por_imovel(imovel)
+        if not segmento:
+            return None  # Retorna None se o imóvel não estiver associado a um segmento
+
+        distancia_inicial = self.calcular_distancia(imovel, segmento.cruzamento_inicial)
+        distancia_final = self.calcular_distancia(imovel, segmento.cruzamento_final)
+
+        if distancia_inicial <= distancia_final:
+            return segmento.cruzamento_inicial
+        else:
+            return segmento.cruzamento_final
+
+    def calcular_distancia(self, imovel, cruzamento):
+        return abs(imovel.ID - cruzamento.ID)
+
 def factor_k(k):
     for i in range(int(math.sqrt(k)), 0, -1):
         if k % i == 0:
