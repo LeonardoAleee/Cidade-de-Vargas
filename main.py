@@ -235,7 +235,7 @@ class Cidade:
 
             # Calcular o custo de escavação com base nos tipos de imóveis adjacentes
             custo_escavacao = (
-                3.0 * segmento.quantidade_comercial -  # Ajuste de custo para área comercial
+                3.0 * segmento.quantidade_comercial +  # Ajuste de custo para área comercial
                 5.0 * segmento.quantidade_turistico +  # Ajuste de custo para área turística
                 1.0 * segmento.quantidade_residencial +  # Ajuste de custo para área residencial
                 2.0 * segmento.quantidade_industrial  # Ajuste de custo para área industrial
